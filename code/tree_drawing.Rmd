@@ -1,0 +1,213 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+## Install and load pacakges
+
+```{r}
+
+install.packages('poppr')
+install.packages('ggtree')
+install.packages('pegas')
+install.packages('ape')
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install("ggtree")
+install.packages('dplyr')
+install.packages("data.table")
+install.packages("OutbreakTools")
+install.packages("ggnewscale")
+```
+
+
+```{r}
+library(poppr)
+library(ggtree)
+library('ape')
+library('pegas')
+library('ggplot2')
+library('tidyverse')
+library(dplyr)
+library("data.table")
+library(OutbreakTools)
+library(ggnewscale)
+
+
+my_cols <- c('#a6cee3','#1f78b4','#b2df8a','#33a02c','#fb9a99','#e31a1c','#fdbf6f','#ff7f00','#cab2d6','#6a3d9a')
+#color pallete
+
+```
+
+# Read phylogenetic tree from file (Newick format)
+```{r}
+mytree<- read.tree(file = '../data/raw/Newick_NJ.newick')
+
+```
+
+# Loading samples and metadata for tips/categories
+```{r}
+tipcategories = fread("../data/raw/samples_inntrogression.txt", 
+                         sep = "\t",
+                         header = TRUE, 
+                         stringsAsFactors = FALSE,
+                      fill = T) 
+  
+dd.tips = as.data.frame(tipcategories)
+```
+
+
+
+#plot tree
+
+
+```{r}
+ggtree(mytree) +
+  geom_treescale() 
+ggtree(mytree, branch.length="none")
+
+
+# ggtree(mytree, layout="circular") + 
+#   ggtitle("(Phylogram) circular layout")
+# 
+
+ggtree(mytree)
+ggtree(mytree, layout="slanted") 
+ggtree(mytree, layout="circular")
+ggtree(mytree, layout="fan", open.angle=120)
+ggtree(mytree, layout="equal_angle")
+ggtree(mytree, layout="daylight")
+ggtree(mytree, branch.length='none')
+ggtree(mytree, branch.length='none', layout='circular')
+ggtree(mytree, layout="daylight", branch.length = 'none')
+
+# 
+# 
+# tree <- groupClade(mytree, .node=c(109, 110))
+# ggtree(tree, aes(color=group, linetype=group)) + geom_tiplab(aes(subset=(group==2)))
+
+```
+
+
+# create trees with metadata
+
+```{r}
+p <- ggtree(mytree) %<+% tipcategories  ### add metadata
+
+clade_tree<- p + geom_tiplab(offset = 2, hjust = .5,  size =3) +
+    geom_tippoint(aes(shape = species, color = origin)) + 
+    theme(legend.position = "right")  +
+      theme_tree2(legend.position='right')
+
+ggsave(clade_tree, filename = '../data/processed/clade_tree.pdf', width = 12, height = 30)
+
+```
+
+
+
+
+```{r}
+p <- ggtree(mytree, layout = 'circular') %<+% tipcategories  ### add metadata
+p + geom_tiplab(offset = 1.6, vjust = .5, size =1) +
+    geom_tippoint(aes(shape = species, color = origin)) + 
+    theme(legend.position = "right") 
+```
+
+  
+```{r}
+p2 <- ggtree(mytree, layout="daylight", branch.length = 'none') %<+% tipcategories  ### add metadata
+p2 + geom_tiplab(offset = .6, vjust = .5, size =2) +
+    geom_tippoint(aes(shape=species, color = origin)) + 
+    theme(legend.position = "right") 
+ggsave(p2, filename = '../data/processed/clade_circular_tree.pdf', width = 12, height = 30)
+
+```
+  
+  
+  
+  
+  
+  ##### tryouts
+  
+  
+```{r}
+
+#dataframe with 3 cols
+
+dd_3<-dd.tips[,1:3]
+
+circ<- ggtree(mytree, layout = 'circular')
+p1 <- gheatmap(circ, dd_3, offset=.8, width=.2,
+               colnames_angle=95, colnames_offset_y = .25) +
+       scale_fill_manual(values=my_cols) 
+
+
+p2 <- p1 + new_scale_fill()
+gheatmap(p2, dd_3, offset=15, width=.3,
+         colnames_angle=90, colnames_offset_y = .25) +
+       scale_fill_manual(values=my_cols) 
+
+
+p <- ggtree(mytree) %<+% dd 
+p + geom_tiplab(offset = .6, hjust = .5) +
+    geom_tippoint(aes(shape = species, color = species,)) + 
+    theme(legend.position = "right")  +
+  geom_tiplab(size=2, align=TRUE, linesize=.5) + 
+    theme_tree2()
+
+
+```
+    
+
+
+
+
+
+```{r}
+ggtree(mytree) %<+% dd + 
+  geom_tiplab(aes(fill = factor(species)),
+              color = "black", # color for label font
+              geom = "label",  # labels not text
+              label.padding = unit(0.15, "lines"), # amount of padding around the labels
+              label.size = 0) + # size of label border
+  theme(
+    # legend.position = c(0.5,0.2), 
+        legend.title = element_blank(), # no title
+        legend.key = element_blank()) + # no keys 
+
+
+
+tipcategories = fread("../data/samples_species.txt", 
+                         sep = "\t",
+                         col.names = c("samples", "species"), 
+                         header = FALSE, 
+                         stringsAsFactors = FALSE) 
+  
+
+dd = as.data.frame(tipcategories)
+```
+
+
+
+
+# get pairwise taxa-taxa distance matrix
+
+
+```{r}
+paw_dist <- cophenetic(mytree)
+```
+
+
+
+```{r}
+plot(mytree, edge.width = 2)
+
+add.scale.bar() # add tree distance scale bar 
+tiplabels()     # show tip IDs
+nodelabels()    # show node IDs
+```
+
+
+
+

@@ -1,0 +1,170 @@
+---
+title: "Admixture_plots"
+output: html_notebook
+---
+
+
+```{r}
+library(RcppCNPy)
+library(reticulate)
+library(tidyverse)
+library(lubridate)
+library(ggplot2)
+library(cowplot)
+library(data.table)
+
+```
+
+
+
+```{r}
+setwd('/Users/josedias/mount/projects/ag-stetter/jdias/projects/introgression_files/')
+
+
+my_cols <- c('#a6cee3','#1f78b4','#b2df8a','#33a02c','#fb9a99','#e31a1c','#fdbf6f','#ff7f00','#cab2d6','#6a3d9a')
+
+amaranth_list<- fread('data/raw/amaranth_list_update.txt')
+samples<- fread('data/raw/sample_name_introgression')
+especies <- fread('data/raw/species.txt')
+samples_table<- samples %>%
+  inner_join(amaranth_list, by="sample_name") %>%
+  select(c(sample_name, origin, color))
+```
+
+```{r}
+ plot_admixture <- function(k,sortbyk,facet_labs = FALSE, ind_labels=FALSE){
+
+admixture_table<- read.table(paste0("data/processed/to_review/admix_resuls/NGSadmix_109_introgression_k",sortbyk,".qopt" )) %>%
+  head(n=109)
+
+together<-cbind(samples_table, admixture_table, especies)
+
+ordered <- together[order(species, together$V6, together$V5, together$V4, together$V3, together$V2),]
+ordered$order <- c(1:length(ordered$V1)) 
+names(ordered)[1] <- 'sample_name'  
+ordered<- ordered %>% 
+  select(c("sample_name", "order"))
+
+qopt_tbl<- read.table(paste0("data/processed/admix_resuls/NGSadmix_109_introgression_k",k,".qopt" )) %>%
+  head(n=109)
+new_together<-cbind(samples_table, qopt_tbl, especies)
+
+b <- merge(ordered, new_together,by='sample_name') %>%
+  distinct(sample_name, .keep_all=TRUE)
+
+
+  b$sample_name <- factor(b$sample_name, levels = unique(b$sample_name[order(b$order, b$sample_name,b$color, b$origin)])) 
+  
+
+
+
+  gathered_data <- gather(b,variable,value,-order,-sample_name,-origin,-color,-species)  
+  
+ p <-    ggplot(data = gathered_data,aes(sample_name,value,fill=variable)) + 
+    geom_bar(stat="identity") +
+    theme(strip.text.x = element_text(size = 8, angle = 90)) +
+      facet_grid(.~species,scales = 'free',space = 'free', switch = "y") +
+   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+       scale_fill_manual(values=my_cols) +
+    theme(panel.spacing = unit(0, "lines"),axis.line.y =element_blank(),axis.text.x=element_text(vjust = 0.5,size = 10),
+          strip.background = element_rect(fill = alpha('brown',0.7),colour = "red")) +
+        guides(fill=FALSE) +
+    labs(x='',y=paste('Ancestry (k=',k,')',sep='')) 
+if (facet_labs==FALSE){
+    p= p + theme(strip.text.x = element_blank(),plot.margin = unit(c(-0.8,0.5,0,0),"cm"))
+  }
+  if (ind_labels == FALSE){
+    p = p + theme(axis.ticks.x =element_blank(),,axis.line.x =element_blank(),axis.text.x =element_blank(),plot.margin = unit(c(0,0.5,0,0),"cm") )
+  }
+  p
+ }
+
+
+```
+# Generate output
+
+```{r,fig.width=10}
+
+p1 <- plot_admixture(9,6,facet_labs = TRUE)
+# ggsave('Admixture_results_k4.pdf',plot=p1,width = 14)
+p2 <- plot_admixture(10,6,ind_labels = TRUE)
+p_out <- plot_grid(p1,p2,ncol=1,rel_heights = c(55,40))
+p_out
+#ggsave('Admixture_results_k4_k8.pdf',p_out,width = 14)
+
+ggsave('data/processed/figures/Admixture_results_k9_k10.pdf',p_out,width = 14)
+
+getwd()
+```
+
+
+
+
+```{r}
+
+
+# plot_admixture <- function(k,sortbyk,facet_labs = FALSE, ind_labels=FALSE){
+
+sortbyk=8
+admixture_table<- read.table(paste0("data/processed/admix_resuls/NGSadmix_109_introgression_k",sortbyk,".qopt" )) %>%
+  head(n=109)
+
+together<-cbind(samples_table, admixture_table, especies)
+
+# 
+ordered <- together[order(species, color, origin, together$V2,together$V3,together$V4,together$V5, together$V6, together$V7, together$V8 ),]
+ordered$order <- c(1:length(ordered$V1))
+names(ordered)[1] <- 'sample_name'  
+
+b<-ordered
+
+  b$sample_name <- factor(b$sample_name, levels = unique(b$sample_name[order(b$order, b$sample_name,b$color, b$origin)])) 
+  
+
+  test <- gather(b,variable,value,-order,-sample_name,-origin,-color,-species)  
+  ggplot(data = test,aes(sample_name,value,fill=variable)) + 
+    geom_bar(stat="identity") +
+    theme(strip.text.x = element_text(size = 8, angle = 90)) +
+      facet_grid(.~species,scales = 'free',space = 'free', switch = "y") +
+   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+       scale_fill_manual(values=my_cols) +
+    theme(panel.spacing = unit(0, "lines"),axis.line.y =element_blank(),axis.text.x=element_text(vjust = 0.5,size = 10),
+          strip.background = element_rect(fill = alpha('brown',0.7),colour = "red")) +
+        guides(fill=FALSE) +
+        labs(x='',y='Ancestry (k=8)') +
+        facet_grid(.~species+color,scales = 'free',space = 'free', switch = "y") 
+
+    # facet_grid(.~species+color+origin,scales = 'free',space = 'free', switch = "y") 
+  
+# }
+  
+  
+
+
+```
+
+
+```{r}
+
+setwd('/Users/josedias/mount/projects/ag-stetter/jdias/projects/introgression_files/')
+
+admixture_table<- read.table(paste0("data/processed/to_review/admix_resuls/NGSadmix_109_introgression_k",6,".qopt" )) %>%
+  head(n=109)
+
+together<-cbind(samples_table, admixture_table, especies)
+
+
+```
+
+```{r}
+
+kays=1:12
+
+for k in kays{
+ read.table(paste0("data/processed/admix_resuls/NGSadmix_109_introgression_k",k,".qopt" )) %>%
+  head(n=109)%>% 
+   summarise(across(everything(), ~ sum(., is.na(.), 0)))
+  
+}
+```
+
